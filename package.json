@@ -1,0 +1,31 @@
+{
+  "name": "raid-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "raid-bot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xenodus/raid-bot.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/xenodus/raid-bot/issues"
+  },
+  "homepage": "https://github.com/xenodus/raid-bot#readme",
+  "dependencies": {
+    "bufferutil": "^4.0.1",
+    "discord.js": "^12.3.1",
+    "erlpack": "github:discord/erlpack",
+    "hashids": "^2.2.1",
+    "lodash": "^4.17.20",
+    "moment": "^2.29.0",
+    "promise-mysql": "^3.3.2",
+    "sodium": "^3.0.2",
+    "utf-8-validate": "^5.0.2",
+    "zlib-sync": "^0.1.7"
+  }
+}
