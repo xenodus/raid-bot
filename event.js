@@ -14,6 +14,7 @@ const Hashids = require('hashids');
 function Event(client, config) {
   var self = this;
   var pool = config.getPool();
+  var readPool = config.getReadPool();
 
   self.getEventDatetimeString = function(eventName) {
     let indexOfTab = eventName.indexOf("[");
@@ -137,7 +138,7 @@ function Event(client, config) {
 
       creator = member.nickname ? member.nickname : member.user.username;
 
-      await pool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, message.guild.id])
+      await readPool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, message.guild.id])
       .then(async function(results){
         if( results.length > 0 ) {
 
@@ -201,12 +202,12 @@ function Event(client, config) {
       })
       .then(async function(result){
 
-        await pool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [result.insertId, channel.guild.id])
+        await readPool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [result.insertId, channel.guild.id])
         .then(async function(results){
           var rows = JSON.parse(JSON.stringify(results));
           let event = rows[0];
 
-          await pool.query("SELECT * FROM event_signup LEFT JOIN event on event_signup.event_id = event.event_id WHERE event_signup.event_id = ? ORDER BY event_signup.date_added ASC", [event.event_id])
+          await readPool.query("SELECT * FROM event_signup LEFT JOIN event on event_signup.event_id = event.event_id WHERE event_signup.event_id = ? ORDER BY event_signup.date_added ASC", [event.event_id])
           .then(async function(results){
 
             let eventInfo = self.getEventInfo(event, results);
@@ -246,10 +247,10 @@ function Event(client, config) {
 
   self.update = async function(message, eventID, eventName, eventDescription) {
     // Check if event belong to server before proceeding
-    await pool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, message.guild.id])
+    await readPool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, message.guild.id])
     .then(async function(results){
       if( results.length > 0 ) {
-        await pool.query("SELECT * FROM event WHERE event_id = ?", [eventID])
+        await readPool.query("SELECT * FROM event WHERE event_id = ?", [eventID])
         .then(async function(results){
           var rows = JSON.parse(JSON.stringify(results));
 
@@ -294,7 +295,7 @@ function Event(client, config) {
 
   self.sub = function(message, eventID, player, type="confirmed", addedByUser="") {
     // Check if event belong to server before proceeding
-    pool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, message.guild.id]).then(function(results){
+    readPool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, message.guild.id]).then(function(results){
 
       if( results.length > 0 ) {
 
@@ -328,7 +329,7 @@ function Event(client, config) {
   *******************************/
 
   self.add2Event = function(message, eventID, type, user, player) {
-    pool.query("SELECT * FROM event WHERE event_id = ? ", [eventID])
+    readPool.query("SELECT * FROM event WHERE event_id = ? ", [eventID])
     .then(function(results){
       var rows = JSON.parse(JSON.stringify(results));
 
@@ -346,7 +347,7 @@ function Event(client, config) {
 
   self.unsub = function(message, eventID, player) {
     // Check if event belong to server before proceeding
-    pool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, message.guild.id]).then(function(results){
+    readPool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, message.guild.id]).then(function(results){
       if( results.length > 0 ) {
         let username = player.nickname ? player.nickname : player.user.username;
         helper.printStatus( "Unsubbed from event ID: " + eventID + " for player, " + username + " for event, " + results[0].event_name );
@@ -365,7 +366,7 @@ function Event(client, config) {
   *******************************/
 
   self.removeFromEvent = function(message, eventID, user, player) {
-    pool.query("SELECT * FROM event WHERE event_id = ? ", [eventID])
+    readPool.query("SELECT * FROM event WHERE event_id = ? ", [eventID])
     .then(function(results){
       var rows = JSON.parse(JSON.stringify(results));
 
@@ -383,10 +384,10 @@ function Event(client, config) {
 
   self.remove = async function(message, eventID, author) {
     // Check if event belong to server before proceeding
-    pool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, message.guild.id]).then(function(results){
+    readPool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, message.guild.id]).then(function(results){
 
       if( results.length > 0 ) {
-        pool.query("SELECT * FROM event WHERE event_id = ? AND status = 'active'", [eventID]).then(function(results){
+        readPool.query("SELECT * FROM event WHERE event_id = ? AND status = 'active'", [eventID]).then(function(results){
 
           var rows = JSON.parse(JSON.stringify(results));
 
@@ -417,7 +418,7 @@ function Event(client, config) {
 
   self.addComment = function(message, eventID, user, comment) {
     // Check if event belong to server before proceeding
-    pool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, message.guild.id])
+    readPool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, message.guild.id])
     .then(function(results){
       if( results.length > 0 ) {
         pool.query("UPDATE event_signup SET comment = ? WHERE event_id = ? AND user_id = ?", [comment, eventID, user.id])
@@ -438,14 +439,14 @@ function Event(client, config) {
   self.updateEventMessage = async function(eventID, channel) {
     let serverID = channel.guild.id;
 
-    await pool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, serverID])
+    await readPool.query("SELECT * FROM event WHERE event_id = ? AND server_id = ?", [eventID, serverID])
     .then(function(results){
       var event = JSON.parse(JSON.stringify(results));
       return event;
     })
     .then(async function(event){
       if( event.length > 0 ) {
-        await pool.query("SELECT * FROM event_signup LEFT JOIN event on event_signup.event_id = event.event_id WHERE event_signup.event_id = ? AND event.server_id = ? ORDER BY event_signup.date_added ASC", [eventID, serverID])
+        await readPool.query("SELECT * FROM event_signup LEFT JOIN event on event_signup.event_id = event.event_id WHERE event_signup.event_id = ? AND event.server_id = ? ORDER BY event_signup.date_added ASC", [eventID, serverID])
         .then(async function(results){
 
           if( event[0].message_id > 0 ) {
@@ -551,7 +552,7 @@ function Event(client, config) {
           Search Events
   *******************************/
   self.search = function(searchStr, player, channel) {
-    pool.query("SELECT * FROM event WHERE server_id = ? AND channel_id = ? AND event_name LIKE ? AND status = 'active' AND ( event_date IS NULL OR event_date >= CURDATE() ) ORDER BY event_date ASC", [channel.guild.id, channel.id, '%'+searchStr+'%'])
+    readPool.query("SELECT * FROM event WHERE server_id = ? AND channel_id = ? AND event_name LIKE ? AND status = 'active' AND ( event_date IS NULL OR event_date >= CURDATE() ) ORDER BY event_date ASC", [channel.guild.id, channel.id, '%'+searchStr+'%'])
     .then(async function(results){
 
       var rows = JSON.parse(JSON.stringify(results));
@@ -566,7 +567,7 @@ function Event(client, config) {
 
         let event = rows[i];
 
-        await pool.query("SELECT * FROM event_signup LEFT JOIN event on event_signup.event_id = event.event_id WHERE event_signup.event_id = ? ORDER BY event_signup.date_added ASC", [event.event_id])
+        await readPool.query("SELECT * FROM event_signup LEFT JOIN event on event_signup.event_id = event.event_id WHERE event_signup.event_id = ? ORDER BY event_signup.date_added ASC", [event.event_id])
         .then(async function(results){
 
           let eventInfo = self.getEventInfo(event, results);
@@ -601,7 +602,7 @@ function Event(client, config) {
     eventChannel.send( "If you're unable to see anything in this channel, make sure User Settings > Text & Images > Link Preview is checked." );
     eventChannel.send( messageEmbed );
 
-    pool.query("SELECT * FROM event WHERE server_id = ? AND channel_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date + INTERVAL 3 HOUR >= NOW() ) ORDER BY event_date IS NULL DESC, event_date ASC", [eventChannel.guild.id, eventChannel.id])
+    readPool.query("SELECT * FROM event WHERE server_id = ? AND channel_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date + INTERVAL 3 HOUR >= NOW() ) ORDER BY event_date IS NULL DESC, event_date ASC", [eventChannel.guild.id, eventChannel.id])
     .then(async function(results){
 
       var rows = JSON.parse(JSON.stringify(results));
@@ -610,7 +611,7 @@ function Event(client, config) {
 
         let event = rows[i];
 
-        await pool.query("SELECT * FROM event_signup LEFT JOIN event on event_signup.event_id = event.event_id WHERE event_signup.event_id = ? ORDER BY event_signup.date_added ASC", [event.event_id])
+        await readPool.query("SELECT * FROM event_signup LEFT JOIN event on event_signup.event_id = event.event_id WHERE event_signup.event_id = ? ORDER BY event_signup.date_added ASC", [event.event_id])
         .then(async function(results){
 
           let eventInfo = self.getEventInfo(event, results);
@@ -637,7 +638,7 @@ function Event(client, config) {
      Ping Signups of Events
   *******************************/
   self.pingEventSignups = function(serverID, eventID, author) {
-    pool.query("SELECT * FROM event_signup LEFT JOIN event ON event_signup.event_id = event.event_id WHERE event_signup.event_id = ? AND event.server_id = ?", [eventID, serverID])
+    readPool.query("SELECT * FROM event_signup LEFT JOIN event ON event_signup.event_id = event.event_id WHERE event_signup.event_id = ? AND event.server_id = ?", [eventID, serverID])
     .then(function(results){
       var rows = JSON.parse(JSON.stringify(results));
       let pinger = author.nickname ? author.nickname : author.user.username;
@@ -680,7 +681,7 @@ function Event(client, config) {
           return msg.id;
         });
 
-        await pool.query("SELECT * FROM event WHERE server_id = ? AND channel_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date + INTERVAL 3 HOUR >= NOW() ) ORDER BY event_date IS NULL DESC, event_date ASC", [eChannel.guild.id, eChannel.id])
+        await readPool.query("SELECT * FROM event WHERE server_id = ? AND channel_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date + INTERVAL 3 HOUR >= NOW() ) ORDER BY event_date IS NULL DESC, event_date ASC", [eChannel.guild.id, eChannel.id])
         .then(async function(results){
 
           var rows = JSON.parse(JSON.stringify(results));
@@ -696,7 +697,7 @@ function Event(client, config) {
                 helper.printStatus( 'Event ID: ' + event.event_id + " missing for channel: " +eChannel.name+ " on server: " + eChannel.guild.name);
 
                 // If event in DB not found in channel - create it
-                await pool.query("SELECT * FROM event_signup LEFT JOIN event on event_signup.event_id = event.event_id WHERE event_signup.event_id = ? ORDER BY event_signup.date_added ASC", [event.event_id])
+                await readPool.query("SELECT * FROM event_signup LEFT JOIN event on event_signup.event_id = event.event_id WHERE event_signup.event_id = ? ORDER BY event_signup.date_added ASC", [event.event_id])
                 .then(async function(results){
                   let eventInfo = self.getEventInfo(event, results);
 
@@ -763,7 +764,7 @@ function Event(client, config) {
 
         if( current_event_messages_ids.length > 0 ) {
           // Get active events
-          await pool.query("SELECT * FROM event WHERE server_id = ? AND channel_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date + INTERVAL 3 HOUR >= NOW() ) ORDER BY event_date IS NULL DESC, event_date ASC", [eChannel.guild.id, eChannel.id])
+          await readPool.query("SELECT * FROM event WHERE server_id = ? AND channel_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date + INTERVAL 3 HOUR >= NOW() ) ORDER BY event_date IS NULL DESC, event_date ASC", [eChannel.guild.id, eChannel.id])
           .then(async function(results){
             var rows = JSON.parse(JSON.stringify(results));
 
@@ -771,7 +772,7 @@ function Event(client, config) {
 
               let event = rows[i];
 
-              await pool.query("SELECT * FROM event_signup LEFT JOIN event on event_signup.event_id = event.event_id WHERE event_signup.event_id = ? ORDER BY event_signup.date_added ASC", [event.event_id])
+              await readPool.query("SELECT * FROM event_signup LEFT JOIN event on event_signup.event_id = event.event_id WHERE event_signup.event_id = ? ORDER BY event_signup.date_added ASC", [event.event_id])
               .then(async function(results){
                 eventInfo = self.getEventInfo(event, results);
                 curr_event_message = current_event_messages.filter(e => { return e.id === event.message_id }).values().next().value;
@@ -851,7 +852,7 @@ function Event(client, config) {
 
   self.cpEvent = async function(message, eventID) {
     // Ensure event ID is valid for the current channel
-    await pool.query("SELECT * FROM event WHERE channel_id = ? AND event_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date >= CURDATE() )", [message.channel.id, eventID]).then(async function(results){
+    await readPool.query("SELECT * FROM event WHERE channel_id = ? AND event_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date >= CURDATE() )", [message.channel.id, eventID]).then(async function(results){
       if( results.length > 0 ) {
 
         let eventName = results[0].event_name;
@@ -874,13 +875,13 @@ function Event(client, config) {
       // Ensure different channel
       if( targetChannel.id != message.channel.id ) {
         // Ensure event ID is valid for the current channel
-        await pool.query("SELECT * FROM event WHERE channel_id = ? AND event_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date >= CURDATE() )", [message.channel.id, eventID]).then(async function(results){
+        await readPool.query("SELECT * FROM event WHERE channel_id = ? AND event_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date >= CURDATE() )", [message.channel.id, eventID]).then(async function(results){
           if( results.length > 0 ) {
 
             let currentMessageID = results[0].message_id;
 
             // Ensure target channel is a valid initialized lfg channel
-            await pool.query("SELECT * FROM event_channel WHERE server_id = ? AND channel_id = ?", [message.guild.id, targetChannel.id]).then(async function(results){
+            await readPool.query("SELECT * FROM event_channel WHERE server_id = ? AND channel_id = ?", [message.guild.id, targetChannel.id]).then(async function(results){
               if( results.length > 0 ) {
                 // Move
                 await pool.query("UPDATE event SET channel_id = ? WHERE event_id = ?", [targetChannel.id, eventID]).then(async function(results){

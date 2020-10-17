@@ -24,6 +24,7 @@ else {
 }
 
 const pool = ( scriptName == 'dev-bot.js' ) ? config.getStagingPool() : config.getPool();
+const readPool = ( scriptName == 'dev-bot.js' ) ? config.getStagingPool() : config.getReadPool();
 const helper = require("./helper.js");
 const event = require("./event.js");
 const raid_event = new event.Event(client, config);
@@ -89,7 +90,7 @@ client.on('messageReactionAdd', async function(reaction, user) {
     if( eventName ) {
 
       message_id = reaction.message.id;
-      eventID = await pool.query("SELECT * FROM event WHERE message_id = ? AND server_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date + INTERVAL 3 HOUR >= NOW() ) LIMIT 1", [message_id, reaction.message.guild.id]).then(async function(results){
+      eventID = await readPool.query("SELECT * FROM event WHERE message_id = ? AND server_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date + INTERVAL 3 HOUR >= NOW() ) LIMIT 1", [message_id, reaction.message.guild.id]).then(async function(results){
         if( results.length > 0 ) {
           return results[0].event_id;
         }
@@ -138,7 +139,7 @@ client.on('messageReactionAdd', async function(reaction, user) {
               + " AND event.event_date <= ((SELECT event_date FROM event WHERE event_id = ?) + INTERVAL 30 MINUTE)"
               + " AND event.event_date >= ((SELECT event_date FROM event WHERE event_id = ?) - INTERVAL 30 MINUTE)";
 
-            await pool.query(query, [user.id, eventID, eventID, eventID, eventID]).then(async function(results){
+            await readPool.query(query, [user.id, eventID, eventID, eventID, eventID]).then(async function(results){
 
               if( results.length > 0 ) {
                 reaction.emoji.name = null;
@@ -177,7 +178,7 @@ client.on('messageReactionAdd', async function(reaction, user) {
 
         else if(reaction.emoji.name === "👋") {
 
-          let creator_id = await pool.query("SELECT * FROM event WHERE message_id = ? AND server_id = ? LIMIT 1", [message_id, reaction.message.guild.id]).then(function(results){
+          let creator_id = await readPool.query("SELECT * FROM event WHERE message_id = ? AND server_id = ? LIMIT 1", [message_id, reaction.message.guild.id]).then(function(results){
             return results[0].created_by;
           })
           .error(function(e){
