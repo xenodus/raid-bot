@@ -6,8 +6,8 @@ const config = require('./config').production;
 const lodash = require('lodash');
 const moment = require("moment");
 const Discord = require("discord.js");
-const client = new Discord.Client();
-const { setIntervalAsync } = require('set-interval-async/dynamic');
+const intents = new Discord.Intents(Discord.Intents.ALL);
+const client = new Discord.Client({ws: { intents }});
 
 /******************************
   Bot Auth
@@ -25,6 +25,7 @@ else {
 }
 
 const pool = ( scriptName == 'dev-bot.js' ) ? config.getStagingPool() : config.getPool();
+const readPool = ( scriptName == 'dev-bot.js' ) ? config.getStagingPool() : config.getReadPool();
 const helper = require("./helper.js");
 const event = require("./event.js");
 const raid_event = new event.Event(client, config);
@@ -48,15 +49,17 @@ client.on("ready", async function() {
   ];
 
   // Random status message every 5s
-  setInterval(function(){
+  client.setInterval(function(){
     client.user.setPresence({ activity: { name: statuses[Math.floor(Math.random() * statuses.length)], type: "PLAYING"}, status: 'online'});
   }, 5000);
 
   // Refresh All Servers
   helper.refreshAllServers(client, raid_event);
 
-  // Reorder All Servers Periodically
-  setIntervalAsync(helper.updateGuildChannels, 30000, client, raid_event);
+  // Reorder All Servers Periodically - 5 mins
+  let reOrderIntervals = 300 * 1000;
+
+  client.setInterval(helper.updateGuildChannels, reOrderIntervals, client, raid_event);
 });
 
 client.on("guildCreate", async function(guild) {
@@ -88,7 +91,7 @@ client.on('messageReactionAdd', async function(reaction, user) {
     if( eventName ) {
 
       message_id = reaction.message.id;
-      eventID = await pool.query("SELECT * FROM event WHERE message_id = ? AND server_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date + INTERVAL 3 HOUR >= NOW() ) LIMIT 1", [message_id, reaction.message.guild.id]).then(async function(results){
+      eventID = await readPool.query("SELECT * FROM event WHERE message_id = ? AND server_id = ? AND status = 'active' AND ( event_date IS NULL OR event_date + INTERVAL 3 HOUR >= NOW() ) LIMIT 1", [message_id, reaction.message.guild.id]).then(async function(results){
         if( results.length > 0 ) {
           return results[0].event_id;
         }
@@ -137,7 +140,7 @@ client.on('messageReactionAdd', async function(reaction, user) {
               + " AND event.event_date <= ((SELECT event_date FROM event WHERE event_id = ?) + INTERVAL 30 MINUTE)"
               + " AND event.event_date >= ((SELECT event_date FROM event WHERE event_id = ?) - INTERVAL 30 MINUTE)";
 
-            await pool.query(query, [user.id, eventID, eventID, eventID, eventID]).then(async function(results){
+            await readPool.query(query, [user.id, eventID, eventID, eventID, eventID]).then(async function(results){
 
               if( results.length > 0 ) {
                 reaction.emoji.name = null;
@@ -176,7 +179,7 @@ client.on('messageReactionAdd', async function(reaction, user) {
 
         else if(reaction.emoji.name === "👋") {
 
-          let creator_id = await pool.query("SELECT * FROM event WHERE message_id = ? AND server_id = ? LIMIT 1", [message_id, reaction.message.guild.id]).then(function(results){
+          let creator_id = await readPool.query("SELECT * FROM event WHERE message_id = ? AND server_id = ? LIMIT 1", [message_id, reaction.message.guild.id]).then(function(results){
             return results[0].created_by;
           })
           .error(function(e){

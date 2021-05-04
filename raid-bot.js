@@ -6,7 +6,8 @@ const config = require('./config').production;
 const lodash = require('lodash');
 const moment = require("moment");
 const Discord = require("discord.js");
-const client = new Discord.Client();
+const intents = new Discord.Intents(Discord.Intents.ALL);
+const client = new Discord.Client({ws: { intents }});
 
 /******************************
   Bot Auth
